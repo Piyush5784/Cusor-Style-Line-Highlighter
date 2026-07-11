@@ -3,6 +3,10 @@
   "displayName": "Git Change Highlighter",
   "description": "Cursor-style line highlighting for git changes: highlights every changed line and lets you step through, accept, or reject each one.",
   "version": "0.0.5",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Piyush5784/Cusor-Style-Line-Highlighter.git"
+  },
   "engines": {
     "vscode": "^1.125.0"
   },
