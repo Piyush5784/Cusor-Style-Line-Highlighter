@@ -1,6 +1,7 @@
 {
   "name": "git-change-highlighter",
   "displayName": "Git Change Highlighter",
+  "publisher": "Piyush5784",
   "description": "Cursor-style line highlighting for git changes: highlights every changed line and lets you step through, accept, or reject each one.",
   "version": "0.0.5",
   "repository": {
