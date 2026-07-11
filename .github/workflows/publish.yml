@@ -2,8 +2,7 @@ name: Publish
 
 on:
   push:
-    tags:
-      - "v*.*.*"
+    branches: [main, master]
 
 jobs:
   publish:
@@ -12,41 +11,66 @@ jobs:
       contents: write
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Check if this version needs publishing
+        id: check
+        run: |
+          VERSION="$(node -p "require('./package.json').version")"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          if git rev-parse "v$VERSION" >/dev/null 2>&1; then
+            echo "Version v$VERSION is already tagged; skipping publish."
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          fi
 
       - uses: actions/setup-node@v4
         with:
           node-version: 20
           cache: npm
 
-      - run: npm ci
-      - run: npm run check-types
-      - run: npm run lint
+      - name: Install dependencies
+        if: steps.check.outputs.changed == 'true'
+        run: npm ci
 
-      - name: Verify tag matches package.json version
-        run: |
-          TAG_VERSION="${GITHUB_REF_NAME#v}"
-          PKG_VERSION="$(node -p "require('./package.json').version")"
-          if [ "$TAG_VERSION" != "$PKG_VERSION" ]; then
-            echo "Tag v$TAG_VERSION does not match package.json version $PKG_VERSION"
-            exit 1
-          fi
+      - name: Type-check
+        if: steps.check.outputs.changed == 'true'
+        run: npm run check-types
+
+      - name: Lint
+        if: steps.check.outputs.changed == 'true'
+        run: npm run lint
 
       - name: Package extension
         id: package
+        if: steps.check.outputs.changed == 'true'
         run: |
           npx vsce package
           echo "vsix=$(ls *.vsix)" >> "$GITHUB_OUTPUT"
 
       - name: Publish to Visual Studio Marketplace
+        if: steps.check.outputs.changed == 'true'
         uses: HaaLeo/publish-vscode-extension@v2
         with:
           pat: ${{ secrets.VSCE_PAT }}
           registryUrl: https://marketplace.visualstudio.com
           extensionFile: ${{ steps.package.outputs.vsix }}
 
+      - name: Tag this version
+        if: steps.check.outputs.changed == 'true'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git tag "v${{ steps.check.outputs.version }}"
+          git push origin "v${{ steps.check.outputs.version }}"
+
       - name: Create GitHub release
+        if: steps.check.outputs.changed == 'true'
         uses: softprops/action-gh-release@v2
         with:
+          tag_name: v${{ steps.check.outputs.version }}
           files: "*.vsix"
           generate_release_notes: true
         env:
